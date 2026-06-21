@@ -4,10 +4,7 @@ struct PopoverView: View {
     @EnvironmentObject private var vm: UsageViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            stateContent
-        }
-        .frame(width: 300)
+        stateContent.frame(width: 300)
     }
 
     // MARK: - State router
@@ -16,136 +13,185 @@ struct PopoverView: View {
     private var stateContent: some View {
         switch vm.state {
         case .loading:
-            placeholderView(
-                symbol: "arrow.clockwise",
-                title: "Loading...",
-                detail: nil
-            )
+            status(icon: "hourglass", tint: .secondary, spinner: true,
+                   title: "Checking usage…", detail: nil)
         case .noCredentials:
-            placeholderView(
-                symbol: "person.slash",
-                title: "Not connected",
-                detail: "Sign in to Claude Code to get started."
-            )
+            status(icon: "person.crop.circle.badge.questionmark", tint: .secondary,
+                   title: "Not signed in",
+                   detail: "Sign in to Claude Code and your usage shows up here.")
         case .tokenExpired:
-            placeholderView(
-                symbol: "exclamationmark.triangle",
-                title: "Session expired",
-                detail: "Open Claude Code to refresh your session."
-            )
+            status(icon: "clock.arrow.circlepath", tint: Palette.ochre,
+                   title: "Session expired",
+                   detail: "Open Claude Code to refresh — it renews automatically.")
         case .unauthorized:
-            placeholderView(
-                symbol: "lock.slash",
-                title: "Unauthorized",
-                detail: "Token rejected by API. Open Claude Code to sign in again."
-            )
+            status(icon: "lock", tint: Palette.clay,
+                   title: "Access denied",
+                   detail: "Your token was rejected. Open Claude Code to sign in again.")
         case .offline(nil):
-            placeholderView(
-                symbol: "wifi.slash",
-                title: "Offline",
-                detail: vm.lastErrorMessage ?? "Could not reach api.anthropic.com. Retrying every 60s."
-            )
+            status(icon: "wifi.slash", tint: .secondary,
+                   title: "Can't reach Anthropic",
+                   detail: vm.lastErrorMessage ?? "Check your connection. Retrying every 15 minutes.")
         case .live(let s), .offline(.some(let s)):
-            usageContent(snapshot: s)
+            usage(s)
         }
     }
 
-    // MARK: - Usage view
+    // MARK: - Usage
 
-    private func usageContent(snapshot: UsageSnapshot) -> some View {
+    private func usage(_ s: UsageSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack {
-                Text("Claude Code Usage")
-                    .font(.headline)
+            header
+            divider
+            VStack(alignment: .leading, spacing: 18) {
+                if let w = s.fiveHour {
+                    hero(w, severity: s.activeSeverity)
+                }
+                if let w = s.sevenDay {
+                    secondary(w)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+            divider
+            footer(updated: s.fetchedAt, retryTitle: "Refresh")
+        }
+    }
+
+    // The 5-hour window: the one that interrupts a session, so it leads.
+    private func hero(_ w: UsageWindow, severity: Severity) -> some View {
+        let pace = windowElapsedFraction(resetsAt: w.resetsAt,
+                                         length: QuotaWindowKind.fiveHour.length)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(QuotaWindowKind.fiveHour.title)
+                    .font(.caption).fontWeight(.medium)
+                    .foregroundStyle(.secondary)
                 Spacer()
-                if vm.isOffline {
-                    Image(systemName: "wifi.slash")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text(readout(w))
+                    .font(.system(.title3, design: .rounded)).fontWeight(.semibold)
+                    .monospacedDigit()
+                    .foregroundStyle(severity.tint)
             }
-            .padding([.horizontal, .top])
-            .padding(.bottom, 10)
-
-            Divider()
-
-            // Quota bars
-            VStack(alignment: .leading, spacing: 14) {
-                if let w = snapshot.fiveHour {
-                    QuotaBarView(
-                        label: "5-hour window",
-                        value: w.utilization / 100.0,
-                        displayText: pctString(w.utilization),
-                        resetsAt: w.resetsAt,
-                        severity: snapshot.activeSeverity
-                    )
-                }
-                if let w = snapshot.sevenDay {
-                    QuotaBarView(
-                        label: "7-day window",
-                        value: w.utilization / 100.0,
-                        displayText: pctString(w.utilization),
-                        resetsAt: w.resetsAt,
-                        severity: .normal
-                    )
-                }
-            }
-            .padding()
-
-            Divider()
-
-            // Footer
-            HStack(spacing: 8) {
-                Text("Updated \(snapshot.fetchedAt, style: .relative) ago")
-                    .font(.caption2)
+            QuotaTrackView(value: fraction(w),
+                           tint: severity.tint, height: 12, pace: pace)
+            if let resets = w.resetsAt {
+                (Text("Resets in ") + Text(resets, style: .relative))
+                    .font(.caption2).monospacedDigit()
                     .foregroundStyle(.tertiary)
-                Spacer()
-                Button("Refresh") { vm.refresh() }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("·").foregroundStyle(.tertiary)
-                Button("Quit") { NSApplication.shared.terminate(nil) }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
         }
     }
 
-    // MARK: - Placeholder
-
-    private func placeholderView(symbol: String, title: String, detail: String?) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(title, systemImage: symbol)
-                .font(.headline)
-            if let detail {
-                Text(detail)
+    // The 7-day window: quiet, secondary, no pace marker — it rarely binds first.
+    private func secondary(_ w: UsageWindow) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(QuotaWindowKind.sevenDay.title)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Divider()
-            HStack(spacing: 8) {
                 Spacer()
-                Button("Retry") { vm.refresh() }
-                    .buttonStyle(.plain)
-                    .font(.caption)
+                Text("\(Int(w.utilization.rounded()))%")
+                    .font(.caption).fontWeight(.semibold).monospacedDigit()
                     .foregroundStyle(.secondary)
-                Text("·").foregroundStyle(.tertiary)
-                Button("Quit") { NSApplication.shared.terminate(nil) }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            }
+            QuotaTrackView(value: w.utilization / 100,
+                           tint: Palette.coral.opacity(0.55), height: 6)
+            if let resets = w.resetsAt {
+                (Text("Resets ") + Text(resets, style: .relative))
+                    .font(.caption2).monospacedDigit()
+                    .foregroundStyle(.tertiary)
             }
         }
-        .padding()
     }
 
-    // MARK: - Helpers
+    // MARK: - Status (non-data states)
 
-    private func pctString(_ v: Double) -> String { "\(Int(v.rounded()))%" }
+    private func status(icon: String, tint: Color, spinner: Bool = false,
+                        title: String, detail: String?) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            divider
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    if spinner {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: icon)
+                            .font(.title3).foregroundStyle(tint)
+                            .frame(width: 24)
+                    }
+                    Text(title).font(.callout).fontWeight(.semibold)
+                }
+                if let detail {
+                    Text(detail)
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+            divider
+            footer(updated: nil, retryTitle: "Retry")
+        }
+    }
+
+    // MARK: - Chrome
+
+    private var header: some View {
+        HStack(spacing: 7) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(Palette.coral)
+                .frame(width: 9, height: 9)
+            Text("Claude Code").font(.callout).fontWeight(.semibold)
+            Spacer()
+            if vm.isOffline {
+                Image(systemName: "wifi.slash")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .help("Offline — showing the last update")
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 12)
+    }
+
+    private var divider: some View { Divider().opacity(0.6) }
+
+    private func footer(updated: Date?, retryTitle: String) -> some View {
+        HStack(spacing: 10) {
+            if let updated {
+                (Text("Updated ") + Text(updated, style: .relative) + Text(" ago"))
+                    .font(.caption2).monospacedDigit()
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+            iconButton("arrow.clockwise", help: retryTitle) { vm.refresh() }
+            iconButton("power", help: "Quit") { NSApplication.shared.terminate(nil) }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private func iconButton(_ symbol: String, help: String,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+
+    // MARK: - Readout helpers
+
+    private func readout(_ w: UsageWindow) -> String {
+        "\(Int(w.utilization.rounded()))%"
+    }
+
+    private func fraction(_ w: UsageWindow) -> Double {
+        w.utilization / 100
+    }
 }

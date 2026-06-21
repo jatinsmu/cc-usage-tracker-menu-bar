@@ -22,7 +22,12 @@ final class UsageViewModel: ObservableObject {
     private var nextPollDelay: UInt64? = nil            // override for rate-limit backoff
     private var pollTask: Task<Void, Never>?
 
-    init() { startPolling() }
+    /// - Parameter autoStart: begin the 15-minute poll loop immediately.
+    ///   Tests pass `false` to build a view model with no network/Keychain
+    ///   side effects, then drive `state` directly.
+    init(autoStart: Bool = true) {
+        if autoStart { startPolling() }
+    }
 
     deinit { pollTask?.cancel() }
 
@@ -113,13 +118,7 @@ final class UsageViewModel: ObservableObject {
         case .offline(nil):       return "--"
         case .live(let s),
              .offline(.some(let s)):
-            switch s.displayMode {
-            case .percent:
-                return "\(Int((s.fiveHour?.utilization ?? 0).rounded()))%"
-            case .dollar:
-                guard let used = s.spend?.used else { return "$?" }
-                return String(format: "$%.2f", used.dollars)
-            }
+            return "\(Int((s.fiveHour?.utilization ?? 0).rounded()))%"
         }
     }
 

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: CI only needs to read the repo.
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Swift toolchain
+        run: swift --version
+
+      # SwiftPM path — validates the package manifest and compiles every target.
+      - name: SwiftPM build
+        run: swift build
+
+      - name: SwiftPM tests
+        run: swift test
+
+      # Distribution path — the exact swiftc build users run locally, minus the
+      # codesign step (no Keychain/identity available on the runner).
+      - name: Verify distributable app build (no codesign)
+        run: CCUSAGEBAR_SKIP_SIGN=1 bash scripts/build-app.sh
+
+      - name: Assert bundle is executable
+        run: test -x CCUsageBar.app/Contents/MacOS/CCUsageBar

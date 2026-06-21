@@ -50,6 +50,17 @@ enum UsageClient {
             }
         }
 
+        return try decode(data)
+    }
+
+    /// Decode a usage payload into a `UsageSnapshot`. Extracted from `fetch`
+    /// so model decoding and date parsing can be unit-tested without a network
+    /// request.
+    static func decode(_ data: Data) throws -> UsageSnapshot {
+        try makeDecoder().decode(UsageSnapshot.self, from: data)
+    }
+
+    static func makeDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { d in
             let c   = try d.singleValueContainer()
@@ -65,7 +76,6 @@ enum UsageClient {
             throw DecodingError.dataCorruptedError(
                 in: c, debugDescription: "Unparseable date: \(str)")
         }
-
-        return try decoder.decode(UsageSnapshot.self, from: data)
+        return decoder
     }
 }

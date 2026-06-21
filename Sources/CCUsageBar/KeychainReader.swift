@@ -59,6 +59,13 @@ enum KeychainReader {
             throw KeychainError.unexpectedData
         }
 
+        return try parse(data)
+    }
+
+    /// Parse the raw JSON blob Claude Code stores in the Keychain.
+    /// Extracted from `readCredentials()` so it can be unit-tested without
+    /// touching the system Keychain.
+    static func parse(_ data: Data) throws -> ClaudeCredentials {
         guard
             let json   = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
             let oauth  = json["claudeAiOauth"] as? [String: Any],

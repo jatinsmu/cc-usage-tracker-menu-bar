@@ -3,11 +3,16 @@ import PackageDescription
 
 let package = Package(
     name: "CCUsageBar",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
             name: "CCUsageBar",
             path: "Sources/CCUsageBar"
-        )
+        ),
+        .testTarget(
+            name: "CCUsageBarTests",
+            dependencies: ["CCUsageBar"],
+            path: "Tests/CCUsageBarTests"
+        ),
     ]
 )
