@@ -43,7 +43,7 @@ struct PopoverView: View {
             placeholderView(
                 symbol: "wifi.slash",
                 title: "Offline",
-                detail: vm.lastErrorMessage ?? "Could not reach api.anthropic.com. Retrying every 60s."
+                detail: vm.lastErrorMessage ?? "Could not reach api.anthropic.com. Retrying every 15 min."
             )
         case .live(let s), .offline(.some(let s)):
             usageContent(snapshot: s)

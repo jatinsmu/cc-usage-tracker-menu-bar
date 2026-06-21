@@ -22,7 +22,12 @@ final class UsageViewModel: ObservableObject {
     private var nextPollDelay: UInt64? = nil            // override for rate-limit backoff
     private var pollTask: Task<Void, Never>?
 
-    init() { startPolling() }
+    /// - Parameter autoStart: begin the 15-minute poll loop immediately.
+    ///   Tests pass `false` to build a view model with no network/Keychain
+    ///   side effects, then drive `state` directly.
+    init(autoStart: Bool = true) {
+        if autoStart { startPolling() }
+    }
 
     deinit { pollTask?.cancel() }
 

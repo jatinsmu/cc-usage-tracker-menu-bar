@@ -70,7 +70,13 @@ CERTEOF
     echo "     (A dialog above is the one-time setup prompt -- expected.)"
 }
 
-ensure_identity
+# Set CCUSAGEBAR_SKIP_SIGN=1 to skip identity setup and codesigning. Used by CI
+# to verify the build path compiles and assembles without Keychain access.
+if [[ "${CCUSAGEBAR_SKIP_SIGN:-0}" == "1" ]]; then
+    echo "[skip] CCUSAGEBAR_SKIP_SIGN=1 -- skipping signing identity setup"
+else
+    ensure_identity
+fi
 
 # ── 2. Compile with swiftc ────────────────────────────────────────────────────
 echo ""
@@ -106,9 +112,13 @@ cp "${REPO_DIR}/Resources/Info.plist"  "${APP_BUNDLE}/Contents/"
 printf 'APPL????' > "${APP_BUNDLE}/Contents/PkgInfo"
 
 # ── 4. Codesign ───────────────────────────────────────────────────────────────
-echo "Signing with '${IDENTITY_NAME}'..."
-codesign --force --deep --sign "${IDENTITY_NAME}" "${APP_BUNDLE}"
-echo "[ok] Signed."
+if [[ "${CCUSAGEBAR_SKIP_SIGN:-0}" == "1" ]]; then
+    echo "[skip] CCUSAGEBAR_SKIP_SIGN=1 -- skipping codesign"
+else
+    echo "Signing with '${IDENTITY_NAME}'..."
+    codesign --force --deep --sign "${IDENTITY_NAME}" "${APP_BUNDLE}"
+    echo "[ok] Signed."
+fi
 
 echo ""
 echo "Done: ${APP_BUNDLE}"

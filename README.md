@@ -1,5 +1,7 @@
 # CCUsageBar
 
+[![CI](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/actions/workflows/ci.yml/badge.svg)](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/actions/workflows/ci.yml)
+
 A lightweight macOS menu bar app that shows your [Claude Code](https://claude.ai/code) quota in real time — no more opening the Claude desktop app and clicking Refresh.
 
 ## Screenshot
@@ -138,9 +140,31 @@ Sources/CCUsageBar/
   Views/
     PopoverView.swift      — state-driven popover
     QuotaBarView.swift     — labelled ProgressView with severity colour
+Tests/CCUsageBarTests/     — XCTest suite for the pure logic
 Resources/Info.plist       — LSUIElement=true, bundle identifier
 scripts/build-app.sh       — compile → assemble .app → codesign
+.github/workflows/ci.yml   — build + test on every PR/push to main
 ```
+
+## Development
+
+Run the test suite:
+
+```bash
+swift test
+```
+
+> `swift test` and `swift build` require a **full Xcode** install — they need the macOS platform SDK that the Command Line Tools alone don't provide. With CLT only, use `scripts/build-app.sh` to build the app, and let CI run the tests.
+
+The tests are plain XCTest and cover the pure logic — API and Keychain JSON decoding, display-mode and severity rules, ISO-8601 date parsing, and the menu-bar label/symbol for each app state. They perform no network or Keychain access.
+
+CI (`.github/workflows/ci.yml`) runs on every pull request to `main` and every push to `main`:
+
+1. `swift build` — validates the package manifest and compiles every target
+2. `swift test` — runs the suite
+3. `CCUSAGEBAR_SKIP_SIGN=1 bash scripts/build-app.sh` — verifies the real distribution build compiles and assembles (codesign skipped on the runner)
+
+**Enforcing it (one-time GitHub setup):** CI runs automatically, but only *blocks* a merge once you require it. In **Settings → Branches** for `main`, add a rule that enables **Require a pull request before merging** and **Require status checks to pass**, then select the **Build & Test** check. After that, nothing merges to `main` until CI is green.
 
 ## Contributing
 

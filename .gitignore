@@ -1,0 +1,13 @@
+# Build artifacts — built locally via scripts/build-app.sh or `swift build`
+/.build/
+/CCUsageBar.app/
+
+# SwiftPM
+/.swiftpm/
+Package.resolved
+
+# macOS
+.DS_Store
+
+# JetBrains IDE (user-specific project settings)
+/.idea/
