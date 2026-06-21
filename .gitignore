@@ -11,3 +11,6 @@ Package.resolved
 
 # JetBrains IDE (user-specific project settings)
 /.idea/
+
+# Claude plans
+/plans/
