@@ -10,7 +10,14 @@ IDENTITY_NAME="CCUsageBar"
 APP_NAME="CCUsageBar"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
-SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+# Resolve the macOS SDK that matches the active toolchain. Hardcoding the CLT
+# path breaks when Xcode is selected (its swiftc can't read the CLT SDK's
+# swiftmodule). xcrun returns the right SDK for both CLT-only and Xcode setups;
+# fall back to the CLT path if xcrun can't answer.
+SDK="$(xcrun --sdk macosx --show-sdk-path 2>/dev/null || true)"
+if [[ -z "${SDK}" || ! -d "${SDK}" ]]; then
+    SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+fi
 TARGET=arm64-apple-macosx13.0
 OUT_DIR="${REPO_DIR}/.build/release"
 APP_BUNDLE="${REPO_DIR}/${APP_NAME}.app"
