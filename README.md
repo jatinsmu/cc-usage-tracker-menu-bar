@@ -28,6 +28,13 @@ A lightweight macOS menu bar app that shows your [Claude Code](https://claude.ai
 
 ## Install
 
+**Build from source — there's no prebuilt download, by design.** The build script
+mints a self-signed code-signing identity *on your machine* and signs the app with it.
+That local identity is what keeps the Claude Code Keychain ACL valid across rebuilds (one
+"Always Allow" and you're done), and building locally avoids the Gatekeeper quarantine a
+downloaded binary would carry. [Releases](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/releases)
+are source snapshots — clone or grab one, then run the script below.
+
 ```bash
 git clone https://github.com/jatinsmu/cc-usage-tracker-menu-bar.git
 cd cc-usage-tracker-menu-bar
@@ -135,11 +142,13 @@ Sources/CCUsageBar/
   CCUsageBarApp.swift      — @main App, MenuBarExtra wired to UsageViewModel
   KeychainReader.swift     — SecItemCopyMatching → ClaudeCredentials
   UsageClient.swift        — async GET /api/oauth/usage → UsageSnapshot
-  Models.swift             — UsageSnapshot, UsageWindow, Severity, DisplayMode
+  Models.swift             — UsageSnapshot, UsageWindow, UsageLimit, Severity
+  QuotaMetrics.swift       — pure pace/percent math for the quota windows
   UsageViewModel.swift     — @MainActor ObservableObject; 15-min poll loop
   Views/
     PopoverView.swift      — state-driven popover
-    QuotaBarView.swift     — labelled ProgressView with severity colour
+    QuotaTrackView.swift   — the quota track with the pace marker
+    Theme.swift            — accent palette (coral → ochre → clay)
 Tests/CCUsageBarTests/     — XCTest suite for the pure logic
 Resources/Info.plist       — LSUIElement=true, bundle identifier
 scripts/build-app.sh       — compile → assemble .app → codesign
@@ -156,7 +165,7 @@ swift test
 
 > `swift test` and `swift build` require a **full Xcode** install — they need the macOS platform SDK that the Command Line Tools alone don't provide. With CLT only, use `scripts/build-app.sh` to build the app, and let CI run the tests.
 
-The tests are plain XCTest and cover the pure logic — API and Keychain JSON decoding, display-mode and severity rules, ISO-8601 date parsing, and the menu-bar label/symbol for each app state. They perform no network or Keychain access.
+The tests are plain XCTest and cover the pure logic — API and Keychain JSON decoding, severity rules, quota pace math, ISO-8601 date parsing, and the menu-bar label/symbol for each app state. They perform no network or Keychain access.
 
 CI (`.github/workflows/ci.yml`) runs on every pull request to `main` and every push to `main`:
 
