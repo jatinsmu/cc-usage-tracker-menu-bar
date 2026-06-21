@@ -24,7 +24,6 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(s.fiveHour?.utilization, 92.5)
         XCTAssertEqual(s.sevenDay?.utilization, 18.0)
         XCTAssertNotNil(s.fiveHour?.resetsAt)
-        XCTAssertEqual(s.displayMode, .percent)
         XCTAssertEqual(s.activeSeverity, .critical)
     }
 
@@ -33,8 +32,6 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(s.fiveHour)
         XCTAssertNil(s.sevenDay)
         XCTAssertTrue(s.limits.isEmpty)
-        XCTAssertNil(s.spend)
-        XCTAssertEqual(s.displayMode, .percent)
         XCTAssertEqual(s.activeSeverity, .normal)
     }
 
@@ -43,32 +40,6 @@ final class ModelsTests: XCTestCase {
         let s = try decode("{}")
         XCTAssertGreaterThanOrEqual(s.fetchedAt.timeIntervalSince1970,
                                     before.timeIntervalSince1970 - 1)
-    }
-
-    // MARK: - displayMode
-
-    func testDisplayModeDollarWhenSpendEnabled() throws {
-        let s = try decode("""
-        { "limits": [], "spend": { "enabled": true,
-          "used": { "amount_minor": 1234, "currency": "USD" } } }
-        """)
-        XCTAssertEqual(s.displayMode, .dollar)
-    }
-
-    func testDisplayModeDollarWhenLimitDollarsPresent() throws {
-        let s = try decode("""
-        { "five_hour": { "utilization": 10, "limit_dollars": 50.0, "used_dollars": 5.0 },
-          "limits": [] }
-        """)
-        XCTAssertEqual(s.displayMode, .dollar)
-    }
-
-    func testDisplayModePercentByDefault() throws {
-        let s = try decode("""
-        { "five_hour": { "utilization": 10 }, "limits": [],
-          "spend": { "enabled": false } }
-        """)
-        XCTAssertEqual(s.displayMode, .percent)
     }
 
     // MARK: - activeSeverity
@@ -96,15 +67,5 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(Severity.normal.symbolName,   "gauge.with.dots.needle.33percent")
         XCTAssertEqual(Severity.warning.symbolName,  "gauge.with.dots.needle.67percent")
         XCTAssertEqual(Severity.critical.symbolName, "exclamationmark.triangle.fill")
-    }
-
-    // MARK: - SpendAmount
-
-    func testSpendAmountConvertsMinorUnitsToDollars() throws {
-        let s = try decode("""
-        { "limits": [], "spend": { "enabled": true,
-          "used": { "amount_minor": 2550, "currency": "USD" } } }
-        """)
-        XCTAssertEqual(s.spend?.used?.dollars, 25.5)
     }
 }

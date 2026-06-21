@@ -118,13 +118,7 @@ final class UsageViewModel: ObservableObject {
         case .offline(nil):       return "--"
         case .live(let s),
              .offline(.some(let s)):
-            switch s.displayMode {
-            case .percent:
-                return "\(Int((s.fiveHour?.utilization ?? 0).rounded()))%"
-            case .dollar:
-                guard let used = s.spend?.used else { return "$?" }
-                return String(format: "$%.2f", used.dollars)
-            }
+            return "\(Int((s.fiveHour?.utilization ?? 0).rounded()))%"
         }
     }
 

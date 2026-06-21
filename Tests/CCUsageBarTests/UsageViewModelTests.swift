@@ -37,15 +37,6 @@ final class UsageViewModelTests: XCTestCase {
         XCTAssertEqual(vm.menuBarLabel, "67%")
     }
 
-    func testLabelDollarMode() throws {
-        let vm = makeVM()
-        vm.state = .live(try snapshot("""
-        { "limits": [], "spend": { "enabled": true,
-          "used": { "amount_minor": 1234, "currency": "USD" } } }
-        """))
-        XCTAssertEqual(vm.menuBarLabel, "$12.34")
-    }
-
     func testOfflinePreservesLastKnownLabel() throws {
         let vm = makeVM()
         vm.state = .offline(try snapshot(#"{ "five_hour": { "utilization": 40 }, "limits": [] }"#))

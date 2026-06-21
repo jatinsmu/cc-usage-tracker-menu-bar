@@ -44,7 +44,7 @@ struct PopoverView: View {
             divider
             VStack(alignment: .leading, spacing: 18) {
                 if let w = s.fiveHour {
-                    hero(w, severity: s.activeSeverity, snapshot: s)
+                    hero(w, severity: s.activeSeverity)
                 }
                 if let w = s.sevenDay {
                     secondary(w)
@@ -58,7 +58,7 @@ struct PopoverView: View {
     }
 
     // The 5-hour window: the one that interrupts a session, so it leads.
-    private func hero(_ w: UsageWindow, severity: Severity, snapshot: UsageSnapshot) -> some View {
+    private func hero(_ w: UsageWindow, severity: Severity) -> some View {
         let pace = windowElapsedFraction(resetsAt: w.resetsAt,
                                          length: QuotaWindowKind.fiveHour.length)
         return VStack(alignment: .leading, spacing: 8) {
@@ -67,12 +67,12 @@ struct PopoverView: View {
                     .font(.caption).fontWeight(.medium)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(readout(w, snapshot))
+                Text(readout(w))
                     .font(.system(.title3, design: .rounded)).fontWeight(.semibold)
                     .monospacedDigit()
                     .foregroundStyle(severity.tint)
             }
-            QuotaTrackView(value: fraction(w, snapshot),
+            QuotaTrackView(value: fraction(w),
                            tint: severity.tint, height: 12, pace: pace)
             if let resets = w.resetsAt {
                 (Text("Resets in ") + Text(resets, style: .relative))
@@ -187,25 +187,11 @@ struct PopoverView: View {
 
     // MARK: - Readout helpers
 
-    private func readout(_ w: UsageWindow, _ s: UsageSnapshot) -> String {
-        switch s.displayMode {
-        case .percent:
-            return "\(Int(w.utilization.rounded()))%"
-        case .dollar:
-            return s.spend?.used.map { String(format: "$%.2f", $0.dollars) } ?? "—"
-        }
+    private func readout(_ w: UsageWindow) -> String {
+        "\(Int(w.utilization.rounded()))%"
     }
 
-    private func fraction(_ w: UsageWindow, _ s: UsageSnapshot) -> Double {
-        switch s.displayMode {
-        case .percent:
-            return w.utilization / 100
-        case .dollar:
-            if let used = s.spend?.used?.dollars,
-               let limit = s.spend?.limit?.dollars, limit > 0 {
-                return used / limit
-            }
-            return w.utilization / 100
-        }
+    private func fraction(_ w: UsageWindow) -> Double {
+        w.utilization / 100
     }
 }
