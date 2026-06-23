@@ -21,6 +21,31 @@ final class KeychainParsingTests: XCTestCase {
                        1_750_000_000, accuracy: 0.001)
     }
 
+    func testParseExpiresAtInSecondsIsNotMisreadAsExpired() throws {
+        // A token whose expiresAt is stored in *seconds* (not ms) must not be
+        // divided by 1000 — doing so lands in 1970 and makes a fresh token read
+        // as expired (the "Session expired" false positive this guards against).
+        let oneHourFromNow = Date().timeIntervalSince1970 + 3600  // seconds
+        let creds = try KeychainReader.parse(Data("""
+        { "claudeAiOauth": {
+            "accessToken": "tok",
+            "expiresAt": \(Int(oneHourFromNow))
+        } }
+        """.utf8))
+
+        let exp = try XCTUnwrap(creds.expiresAt)
+        XCTAssertGreaterThan(exp, Date(), "seconds-epoch token should not parse as expired")
+        XCTAssertEqual(exp.timeIntervalSince1970, oneHourFromNow, accuracy: 1)
+    }
+
+    func testDateFromEpochHandlesBothUnits() {
+        // 1_700_000_000 s and 1_700_000_000_000 ms are the same instant.
+        XCTAssertEqual(KeychainReader.date(fromEpoch: 1_700_000_000).timeIntervalSince1970,
+                       1_700_000_000, accuracy: 0.001)
+        XCTAssertEqual(KeychainReader.date(fromEpoch: 1_700_000_000_000).timeIntervalSince1970,
+                       1_700_000_000, accuracy: 0.001)
+    }
+
     func testParseToleratesMissingOptionalFields() throws {
         let creds = try KeychainReader.parse(Data("""
         { "claudeAiOauth": { "accessToken": "tok" } }
