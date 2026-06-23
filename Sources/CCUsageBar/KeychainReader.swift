@@ -75,10 +75,10 @@ enum KeychainReader {
         }
 
         let expiresAt: Date?
-        if let ms = oauth["expiresAt"] as? Double {
-            expiresAt = Date(timeIntervalSince1970: ms / 1000.0)
-        } else if let ms = oauth["expiresAt"] as? Int {
-            expiresAt = Date(timeIntervalSince1970: Double(ms) / 1000.0)
+        if let raw = oauth["expiresAt"] as? Double {
+            expiresAt = date(fromEpoch: raw)
+        } else if let raw = oauth["expiresAt"] as? Int {
+            expiresAt = date(fromEpoch: Double(raw))
         } else {
             expiresAt = nil
         }
@@ -89,5 +89,16 @@ enum KeychainReader {
             subscriptionType: oauth["subscriptionType"] as? String,
             rateLimitTier:    oauth["rateLimitTier"]    as? String
         )
+    }
+
+    /// Interpret a JSON `expiresAt` epoch whose unit isn't guaranteed.
+    /// Claude Code has historically stored milliseconds, but a value in
+    /// seconds divided by 1000 lands in 1970 — making a *fresh* token read as
+    /// already expired and surfacing a false "Session expired". Disambiguate by
+    /// magnitude: a value at or above 1e12 is milliseconds (1e12 ms = year 2001;
+    /// 1e12 s = year 33658), anything smaller is seconds.
+    static func date(fromEpoch raw: Double) -> Date {
+        let seconds = raw >= 1_000_000_000_000 ? raw / 1000.0 : raw
+        return Date(timeIntervalSince1970: seconds)
     }
 }
