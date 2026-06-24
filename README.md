@@ -82,15 +82,25 @@ Click **Always Allow**. After that, the app reads the token silently on every po
 
 The app checks GitHub Releases about once a day. When a newer version is published,
 the popover shows an **Update available** banner with an **Install** button — it
-downloads the build to your Downloads folder and reveals it in Finder. Because the
-release isn't signed with an Apple Developer ID, installing it is a manual step:
+downloads the build to your Downloads folder and reveals it in Finder.
 
-1. Click **Install** in the popover (or grab the zip from
-   [Releases](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/releases)).
-2. Unzip, replace your existing `CCUsageBar.app`, and open it.
-3. macOS will show the Gatekeeper prompt once (right-click → **Open**), and the
-   Keychain "Always Allow" prompt once more — downloaded builds carry a different
-   signature than your local one, so the grant is re-established a single time.
+**Recommended — install via the in-app Install button:**
+
+1. Click **Install** in the popover. The app downloads the zip itself, so the file
+   is **not quarantined** — no Gatekeeper warning.
+2. Double-click the zip to unzip, then replace your existing `CCUsageBar.app` and
+   open it. It launches straight away.
+3. macOS shows the **Keychain "Always Allow"** prompt once — enter your login
+   password / Touch ID. Releases are ad-hoc signed (no Apple Developer ID), so each
+   new version has a different signature and re-asks this a single time per update.
+
+**If you download the zip from the [Releases page](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/releases) in a browser instead**, the file *is* quarantined and Gatekeeper
+will block the ad-hoc-signed app on first open. To allow it:
+
+- Double-click the app (it gets blocked), then go to **System Settings → Privacy &
+  Security**, scroll to the bottom, and click **Open Anyway** (macOS 15+ — the older
+  right-click → Open shortcut no longer bypasses this). Then the Keychain prompt
+  from step 3 above appears.
 
 Prefer to keep building from source? That path is unchanged:
 
