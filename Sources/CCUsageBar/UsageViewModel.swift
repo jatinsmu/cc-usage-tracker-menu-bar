@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 // MARK: - App state
 
@@ -11,22 +12,41 @@ enum AppState {
     case live(UsageSnapshot)
 }
 
+// MARK: - Update availability
+//
+// Kept separate from `AppState` on purpose: an available update is orthogonal to
+// the usage display (it should show in any state) and shouldn't force a new case
+// through the menu-bar label/symbol/popover switch.
+enum UpdateAvailability: Equatable {
+    case unknown
+    case upToDate
+    case available(ReleaseInfo)
+}
+
 // MARK: - ViewModel
 
 @MainActor
 final class UsageViewModel: ObservableObject {
     @Published var state: AppState = .loading
     @Published var lastErrorMessage: String?
+    @Published var update: UpdateAvailability = .unknown
 
     private let pollInterval: UInt64 = 900_000_000_000  // 15 min in nanoseconds
     private var nextPollDelay: UInt64? = nil            // override for rate-limit backoff
     private var pollTask: Task<Void, Never>?
 
+    // Throttle update checks to at most once per day; persisted across launches.
+    private let updateCheckInterval: TimeInterval = 24 * 60 * 60
+    private let lastUpdateCheckKey = "CCUsageBar.lastUpdateCheck"
+
     /// - Parameter autoStart: begin the 15-minute poll loop immediately.
     ///   Tests pass `false` to build a view model with no network/Keychain
     ///   side effects, then drive `state` directly.
     init(autoStart: Bool = true) {
-        if autoStart { startPolling() }
+        if autoStart {
+            startPolling()
+            Task { await checkForUpdateIfDue() }
+        }
     }
 
     deinit { pollTask?.cancel() }
@@ -46,6 +66,53 @@ final class UsageViewModel: ObservableObject {
 
     func refresh() {
         Task { await poll() }
+    }
+
+    // MARK: - Update check
+
+    /// Check GitHub for a newer release if a day has passed since the last check.
+    /// Any failure is swallowed to "no update known" — the updater must never
+    /// disrupt the usage display.
+    func checkForUpdateIfDue(force: Bool = false) async {
+        let defaults = UserDefaults.standard
+        if !force {
+            let last = defaults.double(forKey: lastUpdateCheckKey)
+            if last > 0, Date().timeIntervalSince1970 - last < updateCheckInterval { return }
+        }
+        defaults.set(Date().timeIntervalSince1970, forKey: lastUpdateCheckKey)
+
+        guard let latest = try? await UpdateChecker.checkLatest() else { return }
+        if UpdateChecker.isNewer(latest.version, than: UpdateChecker.currentVersion) {
+            update = .available(latest)
+        } else {
+            update = .upToDate
+        }
+    }
+
+    /// Download the available release's asset and reveal it in Finder for the
+    /// user to install manually (no Developer ID → no safe silent swap).
+    func downloadUpdate() {
+        guard case .available(let release) = update else { return }
+        guard let asset = release.assetURL else {
+            lastErrorMessage = UpdateError.noAsset.localizedDescription
+            // Fall back to opening the release page so the user isn't stuck.
+            NSWorkspace.shared.open(release.pageURL)
+            return
+        }
+        Task {
+            do {
+                let saved = try await UpdateChecker.download(asset)
+                NSWorkspace.shared.activateFileViewerSelecting([saved])
+            } catch {
+                lastErrorMessage = error.localizedDescription
+                NSWorkspace.shared.open(release.pageURL)
+            }
+        }
+    }
+
+    var availableUpdate: ReleaseInfo? {
+        if case .available(let r) = update { return r }
+        return nil
     }
 
     // MARK: - Core poll

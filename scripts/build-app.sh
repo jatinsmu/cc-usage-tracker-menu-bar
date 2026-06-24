@@ -77,10 +77,16 @@ CERTEOF
     echo "     (A dialog above is the one-time setup prompt -- expected.)"
 }
 
-# Set CCUSAGEBAR_SKIP_SIGN=1 to skip identity setup and codesigning. Used by CI
-# to verify the build path compiles and assembles without Keychain access.
-if [[ "${CCUSAGEBAR_SKIP_SIGN:-0}" == "1" ]]; then
-    echo "[skip] CCUSAGEBAR_SKIP_SIGN=1 -- skipping signing identity setup"
+# Signing mode:
+#   CCUSAGEBAR_SKIP_SIGN=1   -- no codesign at all (CI compile check)
+#   CCUSAGEBAR_ADHOC_SIGN=1  -- ad-hoc sign ("-"); used by the release workflow,
+#                               which has no stable identity. Distributed builds
+#                               are ad-hoc by necessity (no Developer ID); each
+#                               downloaded update re-prompts Keychain access once.
+#   (default)                -- stable self-signed identity for LOCAL rebuilds, so
+#                               the Keychain ACL persists. Don't use ad-hoc here.
+if [[ "${CCUSAGEBAR_SKIP_SIGN:-0}" == "1" || "${CCUSAGEBAR_ADHOC_SIGN:-0}" == "1" ]]; then
+    echo "[skip] not creating a local signing identity"
 else
     ensure_identity
 fi
@@ -121,6 +127,10 @@ printf 'APPL????' > "${APP_BUNDLE}/Contents/PkgInfo"
 # ── 4. Codesign ───────────────────────────────────────────────────────────────
 if [[ "${CCUSAGEBAR_SKIP_SIGN:-0}" == "1" ]]; then
     echo "[skip] CCUSAGEBAR_SKIP_SIGN=1 -- skipping codesign"
+elif [[ "${CCUSAGEBAR_ADHOC_SIGN:-0}" == "1" ]]; then
+    echo "Ad-hoc signing (release build, no stable identity)..."
+    codesign --force --deep --sign - "${APP_BUNDLE}"
+    echo "[ok] Ad-hoc signed."
 else
     echo "Signing with '${IDENTITY_NAME}'..."
     codesign --force --deep --sign "${IDENTITY_NAME}" "${APP_BUNDLE}"

@@ -80,12 +80,37 @@ Click **Always Allow**. After that, the app reads the token silently on every po
 
 ## Updating
 
+The app checks GitHub Releases about once a day. When a newer version is published,
+the popover shows an **Update available** banner with an **Install** button — it
+downloads the build to your Downloads folder and reveals it in Finder. Because the
+release isn't signed with an Apple Developer ID, installing it is a manual step:
+
+1. Click **Install** in the popover (or grab the zip from
+   [Releases](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/releases)).
+2. Unzip, replace your existing `CCUsageBar.app`, and open it.
+3. macOS will show the Gatekeeper prompt once (right-click → **Open**), and the
+   Keychain "Always Allow" prompt once more — downloaded builds carry a different
+   signature than your local one, so the grant is re-established a single time.
+
+Prefer to keep building from source? That path is unchanged:
+
 ```bash
 git pull
 pkill CCUsageBar          # quit the running instance
 bash scripts/build-app.sh
 open CCUsageBar.app
 ```
+
+### Cutting a release (maintainers)
+
+Bump `CFBundleShortVersionString` in `Resources/Info.plist`, then push a matching tag:
+
+```bash
+git tag v1.1.0 && git push origin v1.1.0
+```
+
+`.github/workflows/release.yml` builds an ad-hoc-signed zip and publishes it as a
+GitHub Release — which is what the in-app update check then finds.
 
 ## Menu bar states
 
@@ -142,17 +167,19 @@ Sources/CCUsageBar/
   CCUsageBarApp.swift      — @main App, MenuBarExtra wired to UsageViewModel
   KeychainReader.swift     — SecItemCopyMatching → ClaudeCredentials
   UsageClient.swift        — async GET /api/oauth/usage → UsageSnapshot
+  UpdateChecker.swift      — GitHub Releases check + asset download (hybrid update)
   Models.swift             — UsageSnapshot, UsageWindow, UsageLimit, Severity
   QuotaMetrics.swift       — pure pace/percent math for the quota windows
   UsageViewModel.swift     — @MainActor ObservableObject; 15-min poll loop
   Views/
-    PopoverView.swift      — state-driven popover
+    PopoverView.swift      — state-driven popover + update banner
     QuotaTrackView.swift   — the quota track with the pace marker
     Theme.swift            — accent palette (coral → ochre → clay)
 Tests/CCUsageBarTests/     — XCTest suite for the pure logic
 Resources/Info.plist       — LSUIElement=true, bundle identifier
 scripts/build-app.sh       — compile → assemble .app → codesign
-.github/workflows/ci.yml   — build + test on every PR/push to main
+.github/workflows/ci.yml      — build + test on every PR/push to main
+.github/workflows/release.yml — build + publish a release on every v* tag
 ```
 
 ## Development
