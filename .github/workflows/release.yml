@@ -1,0 +1,41 @@
+name: Release
+
+# Cut a release by pushing a tag, e.g.:
+#   git tag v1.1.0 && git push origin v1.1.0
+# Keep the tag in sync with CFBundleShortVersionString in Resources/Info.plist.
+on:
+  push:
+    tags: ["v*"]
+
+# Needs write access to create the release and upload the asset.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & publish
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      # Ad-hoc signed (no Developer ID): the in-app updater downloads this and
+      # reveals it in Finder for manual install.
+      - name: Build app (ad-hoc signed)
+        run: CCUSAGEBAR_ADHOC_SIGN=1 bash scripts/build-app.sh
+
+      - name: Assert bundle is executable
+        run: test -x CCUsageBar.app/Contents/MacOS/CCUsageBar
+
+      # ditto preserves the bundle structure + signature inside the zip.
+      - name: Zip app
+        run: ditto -c -k --keepParent CCUsageBar.app CCUsageBar.app.zip
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            CCUsageBar.app.zip \
+            --title "${{ github.ref_name }}" \
+            --generate-notes

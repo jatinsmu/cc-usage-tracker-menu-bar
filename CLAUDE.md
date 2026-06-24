@@ -14,6 +14,10 @@ polls `GET https://api.anthropic.com/api/oauth/usage`, and renders the 5-hour an
 - **Build the app (local):** `bash scripts/build-app.sh` then `open CCUsageBar.app`.
   Uses `swiftc` directly so it works on **Command Line Tools-only** machines (no Xcode).
 - **CI / no-codesign build:** `CCUSAGEBAR_SKIP_SIGN=1 bash scripts/build-app.sh`.
+- **Release:** push a `vX.Y.Z` tag (matching `CFBundleShortVersionString` in
+  `Resources/Info.plist`) — `.github/workflows/release.yml` builds an **ad-hoc-signed**
+  (`CCUSAGEBAR_ADHOC_SIGN=1`) zip and publishes it. Local rebuilds still use the stable
+  self-signed identity; ad-hoc is the release path only (no Developer ID).
 - **Tests:** `swift test` — **requires a full Xcode install** (SwiftPM needs the macOS
   platform SDK that CLT alone doesn't provide). On CLT-only machines you can't run the
   suite locally; CI runs it on every PR.
@@ -30,6 +34,11 @@ polls `GET https://api.anthropic.com/api/oauth/usage`, and renders the 5-hour an
 - **`UsageClient`** — async GET. `decode(_:)` / `makeDecoder()` are pure and tested.
   The endpoint + `anthropic-beta: oauth-2025-04-20` header is an **internal Anthropic
   API that can change without notice** — always degrade gracefully, never crash.
+- **`UpdateChecker`** — Foundation-only GitHub Releases check. `isNewer(_:than:)` /
+  `parseLatest(_:)` are pure and tested. Update state lives on the view model as a
+  **separate** `UpdateAvailability` (not an `AppState` case) so it's orthogonal to usage
+  and shows in any state. Hybrid by design: downloads the asset and reveals it in Finder
+  for manual install — no silent swap (would break Gatekeeper + the Keychain ACL).
 - **`UsageViewModel`** — owns `AppState` and the 15-minute poll loop. `init(autoStart:)`
   lets tests build it with no network/Keychain side effects. The Keychain read runs off
   the main actor because the ACL dialog blocks synchronously.
@@ -46,8 +55,9 @@ polls `GET https://api.anthropic.com/api/oauth/usage`, and renders the 5-hour an
   ("Open Claude Code to sign in again"), never surface a raw status code in the popover.
 - **Target is macOS 13.** Don't use 14+ APIs (`.smooth`/`.snappy`, `Observation`, etc.).
   Keep the floor in sync across `Package.swift`, `scripts/build-app.sh`, and the README.
-- **No new dependencies** — Foundation, SwiftUI, Security only. The only network call is
-  to `api.anthropic.com`. Never log or persist the token.
+- **No new dependencies** — Foundation, SwiftUI, Security only. Two network endpoints:
+  `api.anthropic.com` (usage) and `api.github.com` (the once-a-day update check in
+  `UpdateChecker`). Both must degrade gracefully. Never log or persist the token.
 
 ## Design standards
 

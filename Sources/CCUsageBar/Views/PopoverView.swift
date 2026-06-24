@@ -4,7 +4,35 @@ struct PopoverView: View {
     @EnvironmentObject private var vm: UsageViewModel
 
     var body: some View {
-        stateContent.frame(width: 300)
+        VStack(spacing: 0) {
+            if let release = vm.availableUpdate {
+                updateBanner(release)
+            }
+            stateContent
+        }
+        .frame(width: 300)
+    }
+
+    // MARK: - Update banner
+    //
+    // Quiet coral strip above the content; shows in any state. The brand accent
+    // is allowed here because this *is* an app-level notice, not chrome.
+    private func updateBanner(_ release: ReleaseInfo) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.caption).foregroundStyle(Palette.coral)
+            Text("Update available — v\(release.version)")
+                .font(.caption).fontWeight(.medium)
+            Spacer()
+            Button("Install") { vm.downloadUpdate() }
+                .font(.caption.weight(.semibold))
+                .buttonStyle(.plain)
+                .foregroundStyle(Palette.coral)
+                .help("Download the new version and reveal it in Finder")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
+        .background(Palette.coral.opacity(0.12))
     }
 
     // MARK: - State router
