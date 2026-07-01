@@ -23,17 +23,24 @@ A lightweight macOS menu bar app that shows your [Claude Code](https://claude.ai
 ## Requirements
 
 - **macOS 13 (Ventura) or later**
-- **Xcode Command Line Tools** — install with `xcode-select --install` if you haven't already
+- **Xcode Command Line Tools** — only needed if building from source; install with `xcode-select --install` if you haven't already. Skip this if you're installing a prebuilt zip from [Releases](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/releases)
 - **Claude Code** installed and signed in (the app reads your session from the macOS Keychain automatically)
 
 ## Install
 
-**Build from source — there's no prebuilt download, by design.** The build script
-mints a self-signed code-signing identity *on your machine* and signs the app with it.
-That local identity is what keeps the Claude Code Keychain ACL valid across rebuilds (one
-"Always Allow" and you're done), and building locally avoids the Gatekeeper quarantine a
-downloaded binary would carry. [Releases](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/releases)
-are source snapshots — clone or grab one, then run the script below.
+**Recommended for first install: build from source.** The build script mints a
+self-signed code-signing identity *on your machine* and signs the app with it. That
+local identity is what keeps the Claude Code Keychain ACL valid across rebuilds (one
+"Always Allow" and you're done) and avoids the Gatekeeper quarantine a downloaded binary
+would carry.
+
+Prefer not to build it yourself? [Releases](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/releases)
+also publish a prebuilt ad-hoc-signed zip — see [Updating](#updating) below for how to
+install it. It works fine, but since ad-hoc signing has no stable identity, every future
+version re-triggers the Keychain "Always Allow" prompt once, and Gatekeeper blocks a
+browser download until you approve it in System Settings.
+
+To build from source, clone the repo and run the script below.
 
 ```bash
 git clone https://github.com/jatinsmu/cc-usage-tracker-menu-bar.git
@@ -113,14 +120,21 @@ open CCUsageBar.app
 
 ### Cutting a release (maintainers)
 
-Bump `CFBundleShortVersionString` in `Resources/Info.plist`, then push a matching tag:
+First, bump `CFBundleShortVersionString` in `Resources/Info.plist` in a normal PR and
+merge it to `main` — the release workflow checks the tag against this value and fails
+if they don't match. Then release either way:
 
-```bash
-git tag v1.1.0 && git push origin v1.1.0
-```
+- **Push a tag directly:**
 
-`.github/workflows/release.yml` builds an ad-hoc-signed zip and publishes it as a
-GitHub Release — which is what the in-app update check then finds.
+  ```bash
+  git tag v1.1.0 && git push origin v1.1.0
+  ```
+
+- **Or trigger it from GitHub:** Actions tab → **Release** → **Run workflow** → enter
+  the version (e.g. `1.1.0` or `v1.1.0`). Runs against `main` and creates the tag for you.
+
+Either path runs `.github/workflows/release.yml`, which builds an ad-hoc-signed zip and
+publishes it as a GitHub Release — which is what the in-app update check then finds.
 
 ## Menu bar states
 

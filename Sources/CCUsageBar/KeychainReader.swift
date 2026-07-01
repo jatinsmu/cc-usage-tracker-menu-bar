@@ -35,7 +35,51 @@ enum KeychainError: Error, LocalizedError {
 enum KeychainReader {
     static let service = "Claude Code-credentials"
 
-    static func readCredentials() throws -> ClaudeCredentials {
+    /// Right after a long sleep, securityd hasn't finished re-establishing its
+    /// unlock session with the WindowServer — a background-only app (this one
+    /// has no Dock icon) gets errSecInteractionNotAllowed instead of the usual
+    /// prompt in that narrow window. The condition is transient, so a couple of
+    /// short retries clear it without any user action.
+    static let maxInteractionRetries = 2
+    static let interactionRetryDelayNanoseconds: UInt64 = 1_000_000_000  // 1s, doubles each retry
+
+    /// Whether a failed attempt is worth retrying. Extracted so it's testable
+    /// without touching the system Keychain.
+    static func shouldRetry(status: OSStatus, attempt: Int, maxAttempts: Int = maxInteractionRetries) -> Bool {
+        status == errSecInteractionNotAllowed && attempt < maxAttempts
+    }
+
+    /// Delay before the given retry attempt (0-indexed), in nanoseconds.
+    static func retryDelay(forAttempt attempt: Int) -> UInt64 {
+        interactionRetryDelayNanoseconds << attempt
+    }
+
+    static func readCredentials() async throws -> ClaudeCredentials {
+        var attempt = 0
+        while true {
+            let (status, result) = copyMatching()
+
+            switch status {
+            case errSecSuccess:
+                guard let data = result as? Data else {
+                    throw KeychainError.unexpectedData
+                }
+                return try parse(data)
+
+            case errSecItemNotFound:
+                throw KeychainError.itemNotFound
+
+            default:
+                guard shouldRetry(status: status, attempt: attempt) else {
+                    throw KeychainError.accessError(status)
+                }
+                try? await Task.sleep(nanoseconds: retryDelay(forAttempt: attempt))
+                attempt += 1
+            }
+        }
+    }
+
+    private static func copyMatching() -> (OSStatus, AnyObject?) {
         let query: [CFString: Any] = [
             kSecClass:       kSecClassGenericPassword,
             kSecAttrService: service,
@@ -45,21 +89,7 @@ enum KeychainReader {
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        switch status {
-        case errSecSuccess:
-            break
-        case errSecItemNotFound:
-            throw KeychainError.itemNotFound
-        default:
-            throw KeychainError.accessError(status)
-        }
-
-        guard let data = result as? Data else {
-            throw KeychainError.unexpectedData
-        }
-
-        return try parse(data)
+        return (status, result)
     }
 
     /// Parse the raw JSON blob Claude Code stores in the Keychain.
