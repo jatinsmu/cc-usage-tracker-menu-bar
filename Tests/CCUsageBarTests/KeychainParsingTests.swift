@@ -76,4 +76,23 @@ final class KeychainParsingTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - Retry on errSecInteractionNotAllowed
+
+    func testShouldRetryOnlyForInteractionNotAllowed() {
+        XCTAssertTrue(KeychainReader.shouldRetry(status: errSecInteractionNotAllowed, attempt: 0, maxAttempts: 2))
+        XCTAssertFalse(KeychainReader.shouldRetry(status: errSecItemNotFound, attempt: 0, maxAttempts: 2))
+        XCTAssertFalse(KeychainReader.shouldRetry(status: errSecAuthFailed, attempt: 0, maxAttempts: 2))
+    }
+
+    func testShouldRetryStopsAtMaxAttempts() {
+        XCTAssertTrue(KeychainReader.shouldRetry(status: errSecInteractionNotAllowed, attempt: 1, maxAttempts: 2))
+        XCTAssertFalse(KeychainReader.shouldRetry(status: errSecInteractionNotAllowed, attempt: 2, maxAttempts: 2))
+    }
+
+    func testRetryDelayDoublesEachAttempt() {
+        let first = KeychainReader.retryDelay(forAttempt: 0)
+        XCTAssertEqual(KeychainReader.retryDelay(forAttempt: 1), first * 2)
+        XCTAssertEqual(KeychainReader.retryDelay(forAttempt: 2), first * 4)
+    }
 }

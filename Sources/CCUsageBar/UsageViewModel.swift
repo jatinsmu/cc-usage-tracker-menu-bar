@@ -122,7 +122,7 @@ final class UsageViewModel: ObservableObject {
             // Read Keychain off the main actor: SecItemCopyMatching is synchronous
             // and blocks until any ACL dialog is dismissed.
             let creds = try await Task.detached(priority: .userInitiated) {
-                try KeychainReader.readCredentials()
+                try await KeychainReader.readCredentials()
             }.value
 
             if let exp = creds.expiresAt, exp < Date() {
