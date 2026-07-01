@@ -23,17 +23,24 @@ A lightweight macOS menu bar app that shows your [Claude Code](https://claude.ai
 ## Requirements
 
 - **macOS 13 (Ventura) or later**
-- **Xcode Command Line Tools** — install with `xcode-select --install` if you haven't already
+- **Xcode Command Line Tools** — only needed if building from source; install with `xcode-select --install` if you haven't already. Skip this if you're installing a prebuilt zip from [Releases](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/releases)
 - **Claude Code** installed and signed in (the app reads your session from the macOS Keychain automatically)
 
 ## Install
 
-**Build from source — there's no prebuilt download, by design.** The build script
-mints a self-signed code-signing identity *on your machine* and signs the app with it.
-That local identity is what keeps the Claude Code Keychain ACL valid across rebuilds (one
-"Always Allow" and you're done), and building locally avoids the Gatekeeper quarantine a
-downloaded binary would carry. [Releases](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/releases)
-are source snapshots — clone or grab one, then run the script below.
+**Recommended for first install: build from source.** The build script mints a
+self-signed code-signing identity *on your machine* and signs the app with it. That
+local identity is what keeps the Claude Code Keychain ACL valid across rebuilds (one
+"Always Allow" and you're done) and avoids the Gatekeeper quarantine a downloaded binary
+would carry.
+
+Prefer not to build it yourself? [Releases](https://github.com/jatinsmu/cc-usage-tracker-menu-bar/releases)
+also publish a prebuilt ad-hoc-signed zip — see [Updating](#updating) below for how to
+install it. It works fine, but since ad-hoc signing has no stable identity, every future
+version re-triggers the Keychain "Always Allow" prompt once, and Gatekeeper blocks a
+browser download until you approve it in System Settings.
+
+To build from source, clone the repo and run the script below.
 
 ```bash
 git clone https://github.com/jatinsmu/cc-usage-tracker-menu-bar.git
