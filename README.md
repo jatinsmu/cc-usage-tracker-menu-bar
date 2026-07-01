@@ -120,14 +120,21 @@ open CCUsageBar.app
 
 ### Cutting a release (maintainers)
 
-Bump `CFBundleShortVersionString` in `Resources/Info.plist`, then push a matching tag:
+First, bump `CFBundleShortVersionString` in `Resources/Info.plist` in a normal PR and
+merge it to `main` — the release workflow checks the tag against this value and fails
+if they don't match. Then release either way:
 
-```bash
-git tag v1.1.0 && git push origin v1.1.0
-```
+- **Push a tag directly:**
 
-`.github/workflows/release.yml` builds an ad-hoc-signed zip and publishes it as a
-GitHub Release — which is what the in-app update check then finds.
+  ```bash
+  git tag v1.1.0 && git push origin v1.1.0
+  ```
+
+- **Or trigger it from GitHub:** Actions tab → **Release** → **Run workflow** → enter
+  the version (e.g. `1.1.0` or `v1.1.0`). Runs against `main` and creates the tag for you.
+
+Either path runs `.github/workflows/release.yml`, which builds an ad-hoc-signed zip and
+publishes it as a GitHub Release — which is what the in-app update check then finds.
 
 ## Menu bar states
 

@@ -14,10 +14,13 @@ polls `GET https://api.anthropic.com/api/oauth/usage`, and renders the 5-hour an
 - **Build the app (local):** `bash scripts/build-app.sh` then `open CCUsageBar.app`.
   Uses `swiftc` directly so it works on **Command Line Tools-only** machines (no Xcode).
 - **CI / no-codesign build:** `CCUSAGEBAR_SKIP_SIGN=1 bash scripts/build-app.sh`.
-- **Release:** push a `vX.Y.Z` tag (matching `CFBundleShortVersionString` in
-  `Resources/Info.plist`) — `.github/workflows/release.yml` builds an **ad-hoc-signed**
-  (`CCUSAGEBAR_ADHOC_SIGN=1`) zip and publishes it. Local rebuilds still use the stable
-  self-signed identity; ad-hoc is the release path only (no Developer ID).
+- **Release:** bump `CFBundleShortVersionString` in `Resources/Info.plist` in its own PR
+  and merge it to `main` **before** releasing — `release.yml` checks the tag against this
+  value and fails the release if they don't match. Then either push a matching `vX.Y.Z`
+  tag, or trigger **Actions → Release → Run workflow** and type the version (it creates
+  the tag for you). Either path builds an **ad-hoc-signed** (`CCUSAGEBAR_ADHOC_SIGN=1`)
+  zip and publishes it. Local rebuilds still use the stable self-signed identity; ad-hoc
+  is the release path only (no Developer ID).
 - **Tests:** `swift test` — **requires a full Xcode install** (SwiftPM needs the macOS
   platform SDK that CLT alone doesn't provide). On CLT-only machines you can't run the
   suite locally; CI runs it on every PR.
